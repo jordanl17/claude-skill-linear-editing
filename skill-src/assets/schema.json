@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "type": "object",
+  "required": ["title", "prompt"],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Widget heading. 5-12 words."
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Question or instruction shown to the user."
+    }
+  }
+}

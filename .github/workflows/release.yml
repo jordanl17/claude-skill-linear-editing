@@ -1,0 +1,56 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  upload-asset:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Build widget bundle
+        run: pnpm build
+      - name: Verify bundle integrity and runtime behavior
+        run: pnpm test
+      - name: Build ZIPs
+        run: |
+          SKILL_NAME=$(node -p "require('./package.json').name.replace(/^claude-skill-/, '')")
+          (cd skill && zip -r "../${SKILL_NAME}.zip" "${SKILL_NAME}")
+          cp "${SKILL_NAME}.zip" "${SKILL_NAME}-${{ needs.release-please.outputs.tag_name }}.zip"
+          echo "SKILL_NAME=${SKILL_NAME}" >> "$GITHUB_ENV"
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: |
+            ${{ env.SKILL_NAME }}.zip
+            ${{ env.SKILL_NAME }}-*.zip

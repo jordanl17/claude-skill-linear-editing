@@ -1,0 +1,11 @@
+{
+  "_comment": "Scenarios for the programmatic eval suite. Each entry maps to a grader function in grade.ts by id. The hello-world scenario verifies the eval framework runs end-to-end against a template skill that should never trigger.",
+  "evals": [
+    {
+      "id": "hello-world-skip",
+      "prompt": "What is 2 plus 2?",
+      "expected_activation": false,
+      "description": "Template skill should not trigger on a simple factual question."
+    }
+  ]
+}

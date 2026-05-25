@@ -1,0 +1,15 @@
+{
+  "_comment_purpose": "Queries used by the description optimizer (Anthropic's skill-creator run_loop.py) to tune the SKILL.md description field. Each query has expected_trigger:true or false - the optimizer measures precision/recall against this set.",
+  "_comment_constraint": "The optimizer uses claude -p (headless CLI), which cannot invoke visualize:show_widget. Skills that depend on widget rendering see recall=0% because the model rationally refuses to invoke a skill whose primary tool is unavailable. See tests/EVALS.md Surface 4 for context.",
+  "_comment_reference": "Aim for 10-20 queries balanced between should-fire and should-skip. Keep around even if the optimizer is currently blocked - useful for if/when the harness gets a stub show_widget tool.",
+  "queries": [
+    {
+      "query": "PLACEHOLDER: should-fire prompt 1",
+      "expected_trigger": true
+    },
+    {
+      "query": "PLACEHOLDER: should-skip prompt 1",
+      "expected_trigger": false
+    }
+  ]
+}

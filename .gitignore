@@ -1,0 +1,8 @@
+*.zip
+*-workspace/
+node_modules/
+.claude/
+dist/
+.husky/_/
+__pycache__/
+*.pyc

@@ -1,0 +1,38 @@
+<style>.widget{font-family:var(--font-sans);color:var(--color-text-primary);padding:1rem 0}.widget h1{font-size:var(--font-heading-lg-size);line-height:var(--font-heading-lg-line-height);font-weight:var(--font-weight-medium);margin:0 0 .25rem}.widget .sub{font-size:var(--font-text-sm-size);line-height:var(--font-text-sm-line-height);color:var(--color-text-tertiary);margin:0 0 1.5rem}.response-input{border:var(--border-width-regular) solid var(--color-border-secondary);border-radius:var(--border-radius-md);width:100%;min-height:80px;font-size:var(--font-text-md-size);line-height:var(--font-text-md-line-height);font-family:var(--font-sans);background:var(--color-background-primary);color:var(--color-text-primary);box-sizing:border-box;resize:vertical;padding:10px 12px}.response-input:focus{border-color:var(--color-border-info);box-shadow:0 0 0 1px var(--color-border-info);outline:none}.bar{border-top:var(--border-width-regular) solid var(--color-border-tertiary);justify-content:space-between;align-items:center;margin-top:1.5rem;padding:12px 0;display:flex}.count{font-size:var(--font-text-sm-size);color:var(--color-text-secondary)}.actions{align-items:center;gap:6px;display:flex}#applyBtn{font-size:var(--font-text-sm-size);border-radius:var(--border-radius-md);border:var(--border-width-regular) solid var(--color-border-info);background:var(--color-background-info);color:var(--color-text-info);cursor:pointer;padding:6px 14px}#applyBtn:disabled{opacity:.5;cursor:not-allowed}
+/*$vite$:1*/</style>
+<script type="module">var e=e=>{const t=document.querySelector(e);if(!t)throw new Error(`Required element not found: ${e}`);return t},t=e(".response-input"),n=e("#applyBtn"),r=e(".count");t.addEventListener("input",()=>{t.value.trim().length>0?(r.textContent="Response ready",n.disabled=!1):(r.textContent="No response yet",n.disabled=!0)}),n.addEventListener("click",()=>{const e=t.value.trim();0!==e.length&&sendPrompt(`Template widget response: ${e}`)});</script>
+<!--
+Hello-world widget. Vite inlines widget.css + widget.ts into
+skill/<skill-name>/assets/widget-bundled.html at build. ~2.7 KB.
+Replace:
+- Mustache markers (lowercase, e.g. {{title}}). render.py substitutes
+these from the JSON payload at runtime. List new markers in
+bundle.test.ts so size assertions catch drops.
+- data-id / data-snippet carry per-item identity back to widget.ts.
+- Class names drive CSS + JS. Pick domain-specific names.
+- The sr-only h2 reads to screen readers. Replace with one sentence.
+- Keep the .bar block. widget.ts reads #applyBtn and .count.
+-->
+<h2
+class="sr-only"
+style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0)"
+>
+Template widget. Type a response and apply to send it back to the chat.
+</h2>
+<div class="widget">
+<h1>{{title}}</h1>
+<p class="sub">{{prompt}}</p>
+<!-- Replace this textarea with your widget's interactive items. -->
+<textarea
+class="response-input"
+placeholder="Type your response..."
+aria-label="Response"
+></textarea>
+<!-- Action bar - keep the structure; widget.ts reads these selectors. -->
+<div class="bar">
+<span class="count">No response yet</span>
+<div class="actions">
+<button id="applyBtn" disabled>Apply</button>
+</div>
+</div>
+</div>

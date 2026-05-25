@@ -1,0 +1,107 @@
+/*
+ * Hello-world widget styling.
+ *
+ * Prefer var(--token) over hard-coded values; the host provides design
+ * tokens that match the user's theme.
+ *
+ * Available tokens (provided by claude.ai / Claude Desktop):
+ *
+ *   Colors:
+ *     --color-text-{primary,secondary,tertiary,info,success,danger}
+ *     --color-background-{primary,secondary,info,success,danger}
+ *     --color-border-{primary,secondary,tertiary,info}
+ *
+ *   Typography:
+ *     --font-{sans,serif}
+ *     --font-text-{xs,sm,md}-{size,line-height}
+ *     --font-heading-{xs,lg}-{size,line-height}
+ *     --font-weight-medium
+ *
+ *   Radii / borders:
+ *     --border-radius-{xs,md,lg}
+ *     --border-width-regular
+ *
+ * Missing tokens fall back to nothing. Test against the eval-preview
+ * fallbacks (tests/evals/build_preview.ts) to verify worst-case rendering.
+ *
+ * lightningcss strips comments and whitespace from the bundle, so write
+ * for the reader.
+ */
+
+.widget {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  padding: 1rem 0;
+}
+
+.widget h1 {
+  font-size: var(--font-heading-lg-size);
+  line-height: var(--font-heading-lg-line-height);
+  font-weight: var(--font-weight-medium);
+  margin: 0 0 0.25rem;
+}
+
+.widget .sub {
+  font-size: var(--font-text-sm-size);
+  line-height: var(--font-text-sm-line-height);
+  color: var(--color-text-tertiary);
+  margin: 0 0 1.5rem;
+}
+
+/* Replace with styles for your widget's interactive elements. */
+.response-input {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px 12px;
+  border: var(--border-width-regular) solid var(--color-border-secondary);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-text-md-size);
+  line-height: var(--font-text-md-line-height);
+  font-family: var(--font-sans);
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.response-input:focus {
+  outline: none;
+  border-color: var(--color-border-info);
+  box-shadow: 0 0 0 1px var(--color-border-info);
+}
+
+/* Action bar - generic; extend with .clear-all and other buttons. */
+.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding: 12px 0;
+  border-top: var(--border-width-regular) solid var(--color-border-tertiary);
+}
+
+.count {
+  font-size: var(--font-text-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#applyBtn {
+  font-size: var(--font-text-sm-size);
+  padding: 6px 14px;
+  border-radius: var(--border-radius-md);
+  border: var(--border-width-regular) solid var(--color-border-info);
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+  cursor: pointer;
+}
+
+#applyBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
