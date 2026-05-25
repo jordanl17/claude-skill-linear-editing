@@ -1,44 +1,59 @@
 <link rel="stylesheet" href="./widget.css" />
 
-<!--
-  Hello-world widget. Vite inlines widget.css + widget.ts into
-  skill/<skill-name>/assets/widget-bundled.html at build. ~2.7 KB.
-
-  Replace:
-  - Mustache markers (lowercase, e.g. {{title}}). render.py substitutes
-    these from the JSON payload at runtime. List new markers in
-    bundle.test.ts so size assertions catch drops.
-  - data-id / data-snippet carry per-item identity back to widget.ts.
-  - Class names drive CSS + JS. Pick domain-specific names.
-  - The sr-only h2 reads to screen readers. Replace with one sentence.
-  - Keep the .bar block. widget.ts reads #applyBtn and .count.
--->
-
 <h2
   class="sr-only"
   style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0)"
 >
-  Template widget. Type a response and apply to send it back to the chat.
+  Linear issue editor. Numbered chips switch between issues when there is more than one; a small
+  triangle marks the active chip. The title is editable directly as a heading. Each issue can be
+  marked Discard to keep its content in the payload but exclude it from creation. Edit the
+  description, optionally add a prompt for the next turn, then click Proceed to send the edits back
+  to chat.
 </h2>
 
-<div class="widget">
-  <h1>{{title}}</h1>
-  <p class="sub">{{prompt}}</p>
+<div class="le-wrap">
+  <div class="le-header">
+    <i
+      class="ti ti-list-check"
+      style="font-size: 20px; color: var(--color-text-secondary)"
+      aria-hidden="true"
+    ></i>
+    <h3>Linear issue drafts</h3>
+  </div>
+  <p class="le-sub">{{topic}}. Edit any field, then Proceed sends the result back to chat.</p>
 
-  <!-- Replace this textarea with your widget's interactive items. -->
-  <textarea
-    class="response-input"
-    placeholder="Type your response..."
-    aria-label="Response"
-  ></textarea>
+  <div id="le-chips" class="le-chips" role="tablist"></div>
 
-  <!-- Action bar - keep the structure; widget.ts reads these selectors. -->
-  <div class="bar">
-    <span class="count">No response yet</span>
-    <div class="actions">
-      <button id="applyBtn" disabled>Apply</button>
+  <div id="le-form" class="le-form"></div>
+
+  <div class="le-prompt-section">
+    <div class="le-field">
+      <label class="le-label" for="le-prompt-input">Instructions for next turn (optional)</label>
+      <textarea
+        id="le-prompt-input"
+        class="le-textarea le-prompt"
+        placeholder="e.g. tighten the titles, save them to Linear, or combine the discarded issue's notes into issue 3"
+      ></textarea>
     </div>
   </div>
+
+  <div id="le-actions" class="le-actions">
+    <div class="le-actions-info">
+      <span id="le-summary">0 of 0 edited</span>
+    </div>
+    <button id="le-proceed-btn" class="le-proceed" type="button">
+      Proceed with edits
+      <i class="ti ti-arrow-right" style="font-size: 13px; margin-left: 4px" aria-hidden="true"></i>
+    </button>
+  </div>
 </div>
+
+<script id="le-data" type="application/json">
+  {
+    "topic": {{{topic_json}}},
+    "submit_instruction": {{{submit_instruction_json}}},
+    "issues": {{{issues_json}}}
+  }
+</script>
 
 <script type="module" src="./widget.ts"></script>

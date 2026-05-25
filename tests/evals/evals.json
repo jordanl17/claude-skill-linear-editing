@@ -1,11 +1,47 @@
 {
-  "_comment": "Scenarios for the programmatic eval suite. Each entry maps to a grader function in grade.ts by id. The hello-world scenario verifies the eval framework runs end-to-end against a template skill that should never trigger.",
+  "_comment": "Scenarios for the programmatic eval suite. Each entry maps to a grader function in grade.ts by id. Cover trigger precision (should-fire, should-skip), widget shape correctness, and payload encoding.",
   "evals": [
     {
-      "id": "hello-world-skip",
-      "prompt": "What is 2 plus 2?",
+      "id": "multi-draft-fires",
+      "prompt": "Draft three Linear issues for the telemetry audit follow-ups: a p99 latency alert, a backfill of missing trace IDs, and a latency dashboard. Let me edit before you save them.",
+      "expected_activation": true,
+      "description": "Multi-issue draft request with an explicit edit-before-save intent. Should activate."
+    },
+    {
+      "id": "single-draft-fires",
+      "prompt": "Draft a Linear issue to track a spike on ingestion lag during deploys, I want to tweak the description before you save it.",
+      "expected_activation": true,
+      "description": "Single-issue draft request with edit-before-save intent. Should activate."
+    },
+    {
+      "id": "queue-tickets-fires",
+      "prompt": "Queue up tickets for the auth migration so I can review them: the session token storage change, the middleware swap, and the cookie expiry update.",
+      "expected_activation": true,
+      "description": "Multi-issue review intent without the word 'edit'. Should still activate."
+    },
+    {
+      "id": "existing-edit-fires",
+      "prompt": "Look at SAPP-1234 and let's edit the description to make the out-of-scope clearer.",
+      "expected_activation": true,
+      "description": "Substantive edit to the description of an existing Linear issue. Should activate, fetch SAPP-1234 first, and render the widget with linear_id set."
+    },
+    {
+      "id": "save-without-review-skips",
+      "prompt": "Just create a Linear issue titled 'Bump pnpm to 10.11' with body 'Run pnpm install -r and update lockfile' and save it now.",
       "expected_activation": false,
-      "description": "Template skill should not trigger on a simple factual question."
+      "description": "Explicit one-shot save with no review step. Should skip."
+    },
+    {
+      "id": "search-existing-skips",
+      "prompt": "Find me all the open Linear issues assigned to me in the SAPP team.",
+      "expected_activation": false,
+      "description": "Read-only Linear query. Should skip."
+    },
+    {
+      "id": "single-field-edit-skips",
+      "prompt": "Change the title of SAPP-3596 to 'Spike: investigate ingestion lag' please.",
+      "expected_activation": false,
+      "description": "Single-field edit on an existing issue. Should skip."
     }
   ]
 }

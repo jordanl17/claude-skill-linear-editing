@@ -1,14 +1,6 @@
 # Project notes for Claude Code
 
-This repo is the `linear-editing` Claude skill - a `SKILL.md` + interactive widget.
-
-<!--
-PLACEHOLDER: one-sentence summary of what the widget does.
-
-Replace this comment with a single sentence describing the skill's purpose
-(e.g., "a SKILL.md + interactive widget that walks the user through a
-multi-step decision and conveys their selections back to chat").
--->
+This repo is the `linear-editing` Claude skill - a `SKILL.md` + interactive widget that lets the user edit Linear issues (fresh drafts and existing ones) inline before they get saved, then sends the edited title and description back to chat tagged as INCLUDED, UPDATE `<linear-id>`, or DISCARDED so Claude knows whether to create, update, or skip each one.
 
 ## Layout
 
@@ -20,7 +12,9 @@ multi-step decision and conveys their selections back to chat").
 - `scripts/build-zip.sh` - runs `pnpm build`, then zips the `skill/<skill-name>/` folder from within `skill/` so the archive root matches the skill name.
 - `package.json` / `tsconfig.json` / `pnpm-lock.yaml` - Node toolchain (requires Node 20+ and pnpm 10+). Widget JS is authored as strict TypeScript and stripped to JS at build time.
 
-At skill runtime, Claude reads `SKILL.md` (which embeds the schema), constructs a JSON payload matching that schema, calls `python3 ${CLAUDE_SKILL_DIR}/scripts/render.py '<json>'`, and pipes stdout to `visualize:show_widget`. `render.py` uses vendored chevron (MIT-licensed Mustache implementation) for deterministic substitution.
+At skill runtime, Claude reads `SKILL.md` (which embeds the schema), constructs a JSON payload matching that schema, pipes it to `python3 ${CLAUDE_SKILL_DIR}/scripts/render.py` via stdin (never via argv or a temp file - stdin keeps multi-paragraph Markdown out of shell-quoting trouble), and passes the script's stdout to `visualize:show_widget`. `render.py` validates the payload against `assets/schema.json`, auto-derives `<key>_json` variants for every top-level key (so the widget can use `{{topic}}` for HTML-escaped text and `{{{topic_json}}}` for JSON-string context inside `<script id="le-data" type="application/json">`), neutralises any literal `</script>` substrings inside payload values so the embedded JSON block always parses, and chevron-renders `assets/widget-bundled.html`. `widget.ts` reads `le-data` at load via `JSON.parse(dataNode.textContent)`.
+
+Each issue in the payload either represents a fresh draft (no `linear_id` field) or an edit of an existing Linear issue (`linear_id` set to the Linear identifier, e.g. `"SAPP-3596"`). Existing-issue rows hide the Discard button, render an "Editing &lt;id&gt;" badge above the title, and emit `UPDATE <linear_id>` in the Proceed payload instead of `INCLUDED`. The receiving turn uses the tag to decide between `mcp__linear__save_issue` for create vs update.
 
 ## Before changing the skill, read the testing docs
 

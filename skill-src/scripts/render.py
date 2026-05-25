@@ -45,7 +45,8 @@ def check_type(value, expected_type, location):
 
 
 def validate(data, schema, location="root"):
-    # Minimal JSON Schema validation: required, type, additionalProperties, enum.
+    # Minimal JSON Schema validation: required, type, additionalProperties,
+    # enum, minItems.
     expected_type = schema.get("type")
     if expected_type:
         check_type(data, expected_type, location)
@@ -68,6 +69,9 @@ def validate(data, schema, location="root"):
                 validate(value, sub_schema, f"{location}.{key}")
 
     if expected_type == "array" and isinstance(data, list):
+        min_items = schema.get("minItems")
+        if isinstance(min_items, int) and len(data) < min_items:
+            fail(f"{location}: expected at least {min_items} item(s), got {len(data)}")
         item_schema = schema.get("items")
         if item_schema:
             for index, item in enumerate(data):
@@ -76,6 +80,29 @@ def validate(data, schema, location="root"):
     enum = schema.get("enum")
     if enum is not None and data not in enum:
         fail(f"{location}: value not in enum {enum}")
+
+
+def encode_for_script_tag(value):
+    # json.dumps handles quotes, control chars, and unicode. The `</`
+    # replacement neutralizes literal end-tag sequences (e.g. user content
+    # mentioning </script>) that would otherwise prematurely close the
+    # embedding <script type="application/json"> block. JSON allows `\/`
+    # as an escape for `/`, so JSON.parse() in the widget gets the exact
+    # original string back.
+    return json.dumps(value).replace("</", "<\\/")
+
+
+def with_json_siblings(data):
+    # Adds `<key>_json` siblings for every top-level entry so templates can
+    # embed the value verbatim inside a <script type="application/json">
+    # block via {{{key_json}}}. Pre-computed here (not in chevron) because
+    # chevron's logic-less templates can't run json.dumps themselves.
+    if not isinstance(data, dict):
+        return data
+    enriched = dict(data)
+    for key, value in data.items():
+        enriched[f"{key}_json"] = encode_for_script_tag(value)
+    return enriched
 
 
 def main():
@@ -91,7 +118,7 @@ def main():
     validate(data, schema)
 
     template = TEMPLATE.read_text()
-    sys.stdout.write(chevron.render(template, data))
+    sys.stdout.write(chevron.render(template, with_json_siblings(data)))
 
 
 if __name__ == "__main__":

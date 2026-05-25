@@ -381,6 +381,62 @@ function loadRunArtifacts(runDir: string): RunArtifacts {
   };
 }
 
+interface ConditionTotals {
+  passed: number;
+  total: number;
+  passRate: number;
+}
+
+function aggregateCondition(
+  iterationDir: string,
+  evalDirNames: string[],
+  condition: 'with_skill' | 'without_skill',
+): ConditionTotals {
+  const totals = evalDirNames.reduce(
+    (running, dirName) => {
+      const gradingPath = join(iterationDir, dirName, condition, 'run-1', 'grading.json');
+      if (existsSync(gradingPath) === false) return running;
+      const grading = JSON.parse(readFileSync(gradingPath, 'utf8')) as Grading;
+      const summary = grading.summary;
+      return {
+        passed: running.passed + (summary?.passed ?? 0),
+        total: running.total + (summary?.total ?? 0),
+      };
+    },
+    { passed: 0, total: 0 },
+  );
+  const passRate = totals.total === 0 ? 0 : totals.passed / totals.total;
+  return { ...totals, passRate };
+}
+
+function formatPercent(value: number | null): string {
+  return value === null ? '-' : `${Math.round(value * 100)}%`;
+}
+
+function formatDeltaPoints(withSkillRate: number | null, baselineRate: number | null): string {
+  if (withSkillRate === null || baselineRate === null) return '-';
+  const delta = (withSkillRate - baselineRate) * 100;
+  const rounded = Math.round(delta);
+  const sign = rounded > 0 ? '+' : '';
+  return `${sign}${rounded}`;
+}
+
+function formatAssertionTotals(totals: ConditionTotals): string {
+  return totals.total === 0 ? '-' : `${totals.passed} / ${totals.total}`;
+}
+
+function renderSummaryBanner(withSkill: ConditionTotals, baseline: ConditionTotals): string {
+  const withSkillRate = withSkill.total === 0 ? null : withSkill.passRate;
+  const baselineRate = baseline.total === 0 ? null : baseline.passRate;
+  return `<div class="summary-banner">
+  <div class="summary-stat"><span class="value">${formatPercent(withSkillRate)}</span><span class="key">with_skill pass rate</span></div>
+  <div class="summary-stat"><span class="value">${formatPercent(baselineRate)}</span><span class="key">baseline pass rate</span></div>
+  <div class="summary-stat"><span class="value">${formatDeltaPoints(withSkillRate, baselineRate)}</span><span class="key">delta (percentage points)</span></div>
+  <div class="summary-stat"><span class="value">${formatAssertionTotals(withSkill)}</span><span class="key">with_skill assertions</span></div>
+  <div class="summary-stat"><span class="value">${formatAssertionTotals(baseline)}</span><span class="key">baseline assertions</span></div>
+</div>`;
+}
+
 function main(): void {
   const argv = process.argv.slice(2);
   const iterationArg = argv[0];
@@ -398,22 +454,28 @@ function main(): void {
     evalsConfig.evals.map((entry) => [entry.id, entry.prompt]),
   );
 
-  const sections = readdirSync(iterationDir, { withFileTypes: true })
+  const evalDirNames = readdirSync(iterationDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && entry.name.startsWith('eval-'))
-    .sort((left, right) => left.name.localeCompare(right.name))
-    .map((entry) => {
-      const evalName = entry.name.slice('eval-'.length);
-      const runDir = join(iterationDir, entry.name, 'with_skill', 'run-1');
-      const { widgetPath, response, meta, grading } = loadRunArtifacts(runDir);
-      return renderSection(
-        evalName,
-        promptsById[evalName] ?? '',
-        meta,
-        response,
-        grading,
-        buildWidgetBlock(widgetPath),
-      );
-    });
+    .map((entry) => entry.name)
+    .sort((left, right) => left.localeCompare(right));
+
+  const sections = evalDirNames.map((dirName) => {
+    const evalName = dirName.slice('eval-'.length);
+    const runDir = join(iterationDir, dirName, 'with_skill', 'run-1');
+    const { widgetPath, response, meta, grading } = loadRunArtifacts(runDir);
+    return renderSection(
+      evalName,
+      promptsById[evalName] ?? '',
+      meta,
+      response,
+      grading,
+      buildWidgetBlock(widgetPath),
+    );
+  });
+
+  const withSkillTotals = aggregateCondition(iterationDir, evalDirNames, 'with_skill');
+  const baselineTotals = aggregateCondition(iterationDir, evalDirNames, 'without_skill');
+  const summaryBanner = renderSummaryBanner(withSkillTotals, baselineTotals);
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -426,13 +488,7 @@ function main(): void {
 <h1>linear-editing - eval iteration-1</h1>
 <p class="subtitle">${Object.keys(promptsById).length} scenario${Object.keys(promptsById).length === 1 ? '' : 's'} × 2 conditions. Widgets rendered inline with claude.ai design-system fallbacks. Baseline outputs omitted from the visual preview - see grading.json files for that data.</p>
 
-<div class="summary-banner">
-  <div class="summary-stat"><span class="value">-</span><span class="key">with_skill pass rate</span></div>
-  <div class="summary-stat"><span class="value">-</span><span class="key">baseline pass rate</span></div>
-  <div class="summary-stat"><span class="value">-</span><span class="key">delta (percentage points)</span></div>
-  <div class="summary-stat"><span class="value">-</span><span class="key">with_skill assertions</span></div>
-  <div class="summary-stat"><span class="value">-</span><span class="key">baseline assertions</span></div>
-</div>
+${summaryBanner}
 
 ${sections.join('')}
 

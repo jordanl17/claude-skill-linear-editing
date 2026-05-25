@@ -1,55 +1,64 @@
-# Linear editing (Claude skill)
+# linear-editing (Claude skill)
 
-<!--
-PLACEHOLDER: README
+![Claude skill](https://img.shields.io/badge/Claude-skill-c25f3c)
+![release](https://img.shields.io/github/v/release/jordanl17/claude-skill-linear-editing?label=release&color=blue)
+![downloads](https://img.shields.io/github/downloads/jordanl17/claude-skill-linear-editing/total?label=downloads&color=blue)
+![updated](https://img.shields.io/github/release-date/jordanl17/claude-skill-linear-editing?label=updated&color=blue)
+![license](https://img.shields.io/github/license/jordanl17/claude-skill-linear-editing?color=blue)
 
-This README is the front door for users who find the repo from a release page,
-the skill picker, or a search result. Answer these questions in order:
+Edit Linear issues inline before they get saved. Ask Claude to draft a batch of new issues or to load an existing one, then tweak the title and description in an interactive widget instead of describing the edits in prose. Hit Proceed and Claude saves what you actually wrote, not its interpretation of your follow-up paragraph.
 
-1. WHAT does this skill do, in one paragraph?
-   Lead with the user benefit, not the mechanism. Picture someone seeing
-   only this paragraph - would they know whether the skill is relevant to
-   them?
+> [!NOTE]
+> The widget renders in claude.ai (web) and Claude Desktop. Claude Code, `claude -p`, and the Anthropic API cannot invoke `visualize:show_widget`, so the skill no-ops there.
 
-2. WHY does it exist?
-   What friction does it remove? A side-by-side comparison image (prose-
-   only vs widget) lands well for visual skills.
+## In action
 
-3. WHEN does it activate?
-   Phrase patterns and shape heuristics. Keep the description symmetric:
-   what fires it, what does NOT fire it.
-
-4. HOW do I install it?
-   - Download the zip from the latest release
-   - Open claude.ai/customize/skills, click +, upload the zip
-   - (optional) Build-from-source instructions
-
-Other sections to consider:
-- A demo GIF in a /demo folder
-- Limitations (where it works: claude.ai web, Claude Desktop; where it does
-  not: Claude Code, the API)
-- License
-
--->
-
-## What it does
-
-<!-- PLACEHOLDER: one-paragraph description of the user benefit -->
+<!-- TODO: add demo GIF at demo/linear-editing.gif (300-500KB, ~800px wide) -->
+<p align="center">
+  <img src="demo/linear-editing.gif" width="800" alt="Drafting three Linear issues, tweaking titles and descriptions inline, hitting Proceed to save the edited content to Linear" />
+</p>
 
 ## Why this exists
 
-<!-- PLACEHOLDER: the friction this removes, ideally with a comparison image -->
+<!-- TODO: add comparison image at demo/comparison.png (prose back-and-forth vs widget edit) -->
+<p align="center">
+  <img src="demo/comparison.png" width="800" alt="Prose back-and-forth on the left, linear-editing widget on the right" />
+</p>
+
+Drafting Linear issues in chat normally means a round of _"no, the second one - actually tighten the title and drop the third bullet"_, followed by Claude restating its understanding, followed by another correction. The same friction shows up for existing issues: _"in SAPP-1234 the out-of-scope section, can you make it..."_
+
+The linear-editing widget turns the draft into the editing surface. The title is a heading you type into; the description is an auto-resizing Markdown textarea; chips navigate between issues when there are several. Hit Proceed and the edited content goes back to Claude as authoritative, with each issue tagged INCLUDED (create), UPDATE `<linear-id>` (update existing), or DISCARDED (kept for prompt reference only). No mapping prose back onto Claude's mental model of what it wrote.
 
 ## When it activates
 
-<!-- PLACEHOLDER: the trigger phrases and the does-not-activate cases -->
+Two activation paths.
+
+**Fresh drafts.** Ask Claude to compose new Linear issues with a signal that you want to review before they save.
+
+- _"Draft three issues for the telemetry audit and let me tweak them."_
+- _"Queue up tickets for the auth migration so I can review."_
+- _"Set up these issues, I want to edit before you save."_
+
+**Edits to existing issues.** Ask Claude to substantively rewrite the title and/or description of one or more existing issues. The skill fetches the live content from Linear first, pre-populates the widget, and shows a purple "Editing SAPP-1234" badge so you know you're working against a real issue.
+
+- _"Look at SAPP-1234 and let's edit the description to make the out-of-scope clearer."_
+- _"Rewrite the description of SAPP-2104 to drop the alpha context."_
+- _"Open SAPP-1234 and SAPP-5678 so I can rework them in one go."_
+
+The skill does not fire on:
+
+- Read-only Linear queries (list, search, assign, comment).
+- One-shot create-and-save with no review step (_"just create issue X with body Y and save it"_).
+- Single-field swaps on existing issues (_"change the title to X"_, _"set the priority to high"_). Apply those inline with the Linear MCP.
 
 ## Install
 
-1. Download `linear-editing.zip` from the latest release.
+1. Download [`linear-editing.zip`](https://github.com/jordanl17/claude-skill-linear-editing/releases/latest/download/linear-editing.zip) from the latest release.
 2. Open [claude.ai/customize/skills](https://claude.ai/customize/skills) (or navigate via **Customize → Skills** in the left sidebar).
 3. Click the **+** button, then **Create Skill** → **Upload a Skill**.
 4. Select the `linear-editing.zip` file you downloaded.
+
+The skill appears in your skills list once uploaded. You will also want the Linear MCP server installed in the same workspace so Claude can fetch and save Linear issues; the skill itself only produces the editing surface.
 
 ### Build from source
 
@@ -58,18 +67,14 @@ pnpm install
 pnpm build:zip
 ```
 
+The zip lands at `linear-editing.zip` in the repo root. Upload it the same way.
+
 ## Limitations
 
-<!--
-PLACEHOLDER: where the skill works and where it does not. Boilerplate that
-applies to most widget-based skills:
-
-- Not available in Claude Code or the API. The widget renders through
-  visualize:show_widget, which is exposed in claude.ai and Claude Desktop
-  but not in Claude Code or the Anthropic API.
-- Add skill-specific limits here (e.g., nesting depth, structural-edit
-  limits, content-type constraints).
--->
+- **claude.ai and Claude Desktop only.** Claude Code, `claude -p` (headless CLI), and the Anthropic API cannot invoke `visualize:show_widget`, which the skill depends on to render.
+- **Linear MCP needed for the save round-trip.** The widget produces the edited content; Claude calls `mcp__linear__save_issue` to create or update. Without the Linear MCP in the workspace, the widget still works but the save step needs you to copy the content out manually.
+- **Title and description only.** Priority, assignee, team, labels, status, project, milestone, and parent issue are out of scope - apply those with the Linear MCP directly.
+- **Discard only on fresh drafts.** Existing-issue rows hide the Discard button (you cannot "discard" an issue that already exists in Linear) and emit `UPDATE <linear-id>` in the Proceed payload instead of `INCLUDED`.
 
 ## License
 

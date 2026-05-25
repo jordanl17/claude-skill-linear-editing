@@ -3,7 +3,7 @@
  *
  * Catches build-config regressions that only surface in production - e.g.
  * type="module" lost (script runs before DOM), terser mangling sendPrompt
- * (silent broken Apply), or accidental bloat (~80 output tokens per KB
+ * (silent broken Proceed), or accidental bloat (~80 output tokens per KB
  * of streaming).
  *
  * Extend:
@@ -26,18 +26,25 @@ const bundle = readFileSync(bundlePath, 'utf8');
 describe('bundle integrity', () => {
   describe('script execution timing', () => {
     it('the inlined <script> declares type="module" so it defers past DOM parsing', () => {
-      // Vite hoists the <script> near the top. Without type="module" it
-      // runs synchronously and module-top requireElement() calls fail.
       expect(bundle).toMatch(/<script\s+type="module">/);
     });
 
     it('does NOT contain a bare <script> without attributes (legacy non-deferred pattern)', () => {
       expect(bundle).not.toMatch(/<script>\s*(?:var|const|let|function|document)/);
     });
+
+    it('the embedded JSON payload script keeps its type="application/json" attribute', () => {
+      expect(bundle).toMatch(/<script[^>]*id="le-data"[^>]*type="application\/json"/);
+    });
   });
 
-  describe('runtime slot tokens preserved (filled by Claude at render time)', () => {
-    const runtimeTokens: readonly string[] = ['title', 'prompt'];
+  describe('runtime slot tokens preserved (filled by Claude / render.py at render time)', () => {
+    const runtimeTokens: readonly string[] = [
+      'topic',
+      'topic_json',
+      'submit_instruction_json',
+      'issues_json',
+    ];
 
     runtimeTokens.forEach((token) => {
       it(`{{${token}}} is present in the bundled HTML`, () => {
@@ -47,9 +54,16 @@ describe('bundle integrity', () => {
   });
 
   describe('critical string literals survive JS minification', () => {
-    // Terser keeps string literals by default. A future config change
-    // could break this silently.
-    const literals: readonly string[] = ['sendPrompt', 'applyBtn', 'response-input'];
+    const literals: readonly string[] = [
+      'sendPrompt',
+      'le-data',
+      'le-chips',
+      'le-form',
+      'le-proceed-btn',
+      'le-prompt-input',
+      'le-actions',
+      'le-summary',
+    ];
 
     literals.forEach((literal) => {
       it(`"${literal}" appears in the bundled output`, () => {
@@ -59,9 +73,8 @@ describe('bundle integrity', () => {
   });
 
   describe('size budget', () => {
-    it('bundle stays under 16 KB (16,384 bytes)', () => {
-      // Hello-world: ~2.7 KB. Full widgets typically reach 10-15 KB.
-      expect(bundle.length).toBeLessThan(16_384);
+    it('bundle stays under 24 KB (24,576 bytes)', () => {
+      expect(bundle.length).toBeLessThan(24_576);
     });
   });
 });
