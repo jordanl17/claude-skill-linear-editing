@@ -18,7 +18,7 @@
  * fallback to submit_instruction.
  */
 
-export {};
+import { readDataIsland, requireElement, sendPrompt } from '@visill/sdk';
 
 interface IssueInput {
   id: string;
@@ -39,13 +39,6 @@ interface IssueState extends IssueInput {
 
 type EditableField = 'title' | 'description';
 
-const requireElement = <ElementType extends Element>(selector: string): ElementType => {
-  const found = document.querySelector(selector);
-  if (found === null) throw new Error(`Required element not found: ${selector}`);
-  return found as ElementType;
-};
-
-const dataNode = requireElement<HTMLScriptElement>('#le-data');
 const chipsContainer = requireElement<HTMLDivElement>('#le-chips');
 const formContainer = requireElement<HTMLDivElement>('#le-form');
 const summaryElement = requireElement<HTMLSpanElement>('#le-summary');
@@ -53,7 +46,7 @@ const promptInput = requireElement<HTMLTextAreaElement>('#le-prompt-input');
 const proceedButton = requireElement<HTMLButtonElement>('#le-proceed-btn');
 const actionsElement = requireElement<HTMLDivElement>('#le-actions');
 
-const payload = JSON.parse(dataNode.textContent ?? '{}') as Payload;
+const payload = readDataIsland<Payload>('le-data');
 
 const originalIssues: IssueInput[] = payload.issues.map((issue) => ({ ...issue }));
 const issueStates: IssueState[] = payload.issues.map((issue) => ({ ...issue, discarded: false }));
@@ -76,8 +69,9 @@ const isExisting = (index: number): boolean => {
   return typeof linearId === 'string' && linearId.length > 0;
 };
 
-const canDiscardIssue = (index: number): boolean =>
-  issueStates.length > 1 && isExisting(index) === false;
+const isLocalDraft = (index: number): boolean => !isExisting(index);
+
+const canDiscardIssue = (index: number): boolean => issueStates.length > 1 && isLocalDraft(index);
 
 const isEdited = (index: number): boolean => {
   const current = issueStates[index];
@@ -102,8 +96,7 @@ const autoResize = (textarea: HTMLTextAreaElement): void => {
 const buildChipMarkup = (issue: IssueState, index: number): string => {
   const activeClass = index === activeIndex ? 'active' : '';
   const discardedClass = isDiscarded(index) ? 'discarded' : '';
-  const dot =
-    isEdited(index) === true ? '<span class="le-chip-dot" aria-hidden="true"></span>' : '';
+  const dot = isEdited(index) ? '<span class="le-chip-dot" aria-hidden="true"></span>' : '';
   const baseTip = issue.title.length > 0 ? issue.title : '(untitled)';
   const flagParts = [
     isExisting(index) ? `editing ${issue.linear_id}` : null,
@@ -116,12 +109,12 @@ const buildChipMarkup = (issue: IssueState, index: number): string => {
 };
 
 const renderChips = (): void => {
-  if (showChips === false) {
-    chipsContainer.style.display = 'none';
+  if (showChips) {
+    chipsContainer.style.display = 'flex';
+    chipsContainer.innerHTML = issueStates.map(buildChipMarkup).join('');
     return;
   }
-  chipsContainer.style.display = 'flex';
-  chipsContainer.innerHTML = issueStates.map(buildChipMarkup).join('');
+  chipsContainer.style.display = 'none';
 };
 
 const renderForm = (): void => {
@@ -137,14 +130,12 @@ const renderForm = (): void => {
   const discardTitle = discarded
     ? 'Discarded, click to restore'
     : 'Discard this issue (its content stays in the payload for prompt reference)';
-  const discardButton =
-    canDiscardIssue(activeIndex) === true
-      ? `<button class="le-discard ${discarded ? 'active' : ''}" type="button" data-discard aria-pressed="${discarded}" title="${discardTitle}"><i class="ti ${discardIcon}" style="font-size: 14px;" aria-hidden="true"></i>${discardLabel}</button>`
-      : '';
-  const existingBadge =
-    existing === true
-      ? `<div class="le-existing-badge" data-linear-id="${escapeAttr(issue.linear_id ?? '')}">Editing ${escapeAttr(issue.linear_id ?? '')}</div>`
-      : '';
+  const discardButton = canDiscardIssue(activeIndex)
+    ? `<button class="le-discard ${discarded ? 'active' : ''}" type="button" data-discard aria-pressed="${discarded}" title="${discardTitle}"><i class="ti ${discardIcon}" style="font-size: 14px;" aria-hidden="true"></i>${discardLabel}</button>`
+    : '';
+  const existingBadge = existing
+    ? `<div class="le-existing-badge" data-linear-id="${escapeAttr(issue.linear_id ?? '')}">Editing ${escapeAttr(issue.linear_id ?? '')}</div>`
+    : '';
   const readonlyAttr = discarded ? 'readonly' : '';
 
   formContainer.innerHTML = `
@@ -194,53 +185,55 @@ const isEditableField = (value: string | undefined): value is EditableField =>
   value === 'title' || value === 'description';
 
 chipsContainer.addEventListener('click', (event) => {
-  if (submitted === true) return;
+  if (submitted) return;
   const target = event.target;
-  if (target instanceof Element === false) return;
-  const chip = (target as Element).closest<HTMLButtonElement>('.le-chip');
-  if (chip === null) return;
-  const indexAttr = chip.getAttribute('data-index');
-  if (indexAttr === null) return;
-  activeIndex = Number(indexAttr);
-  renderAll();
+  if (target instanceof Element) {
+    const chip = target.closest<HTMLButtonElement>('.le-chip');
+    if (chip === null) return;
+    const indexAttr = chip.getAttribute('data-index');
+    if (indexAttr === null) return;
+    activeIndex = Number(indexAttr);
+    renderAll();
+  }
 });
 
 formContainer.addEventListener('input', (event) => {
-  if (submitted === true) return;
+  if (submitted) return;
   const target = event.target;
-  if (
-    target instanceof HTMLInputElement === false &&
-    target instanceof HTMLTextAreaElement === false
-  )
-    return;
-  const fieldElement = target as HTMLInputElement | HTMLTextAreaElement;
-  const fieldName = fieldElement.dataset['field'];
-  if (isEditableField(fieldName) === false) return;
-  const current = issueStates[activeIndex];
-  if (current === undefined) return;
-  current[fieldName] = fieldElement.value;
-  if (fieldElement instanceof HTMLTextAreaElement && fieldName === 'description') {
-    autoResize(fieldElement);
+  const isFieldElement =
+    target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+  if (isFieldElement) {
+    const fieldName = target.dataset['field'];
+    if (isEditableField(fieldName)) {
+      const current = issueStates[activeIndex];
+      if (current === undefined) return;
+      current[fieldName] = target.value;
+      if (target instanceof HTMLTextAreaElement && fieldName === 'description') {
+        autoResize(target);
+      }
+      renderChips();
+      renderSummary();
+    }
   }
-  renderChips();
-  renderSummary();
 });
 
 formContainer.addEventListener('click', (event) => {
-  if (submitted === true) return;
+  if (submitted) return;
   const target = event.target;
-  if (target instanceof Element === false) return;
-  const discardButton = (target as Element).closest<HTMLButtonElement>('[data-discard]');
-  if (discardButton === null) return;
-  if (canDiscardIssue(activeIndex) === false) return;
-  const current = issueStates[activeIndex];
-  if (current === undefined) return;
-  current.discarded = current.discarded === false;
-  renderAll();
+  if (target instanceof Element) {
+    const discardButton = target.closest<HTMLButtonElement>('[data-discard]');
+    if (discardButton === null) return;
+    if (canDiscardIssue(activeIndex)) {
+      const current = issueStates[activeIndex];
+      if (current === undefined) return;
+      current.discarded = !current.discarded;
+      renderAll();
+    }
+  }
 });
 
 promptInput.addEventListener('input', () => {
-  if (submitted === true) return;
+  if (submitted) return;
   promptText = promptInput.value;
   autoResize(promptInput);
 });
@@ -301,10 +294,10 @@ const buildSubmissionLines = (): string => {
 };
 
 proceedButton.addEventListener('click', () => {
-  if (submitted === true) return;
+  if (submitted) return;
   submitted = true;
   proceedButton.disabled = true;
-  if (showChips === true) {
+  if (showChips) {
     chipsContainer.querySelectorAll<HTMLButtonElement>('.le-chip').forEach((chip) => {
       chip.disabled = true;
     });
