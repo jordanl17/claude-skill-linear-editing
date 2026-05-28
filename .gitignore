@@ -6,3 +6,4 @@ dist/
 .husky/_/
 __pycache__/
 *.pyc
+parity-report.json
